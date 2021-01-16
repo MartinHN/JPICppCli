@@ -45,8 +45,9 @@ bool sendPing();
 const char *ssid = net0.ssid;
 const char *password = net0.pass;
 
-string mdnsPrefix;
+string instanceType;
 std::string uid;
+std::string instanceName;
 unsigned long lastPingTime = 0;
 
 bool connected = false;
@@ -103,7 +104,7 @@ void connectToWiFi() {
 }
 
 void setup(const string &type, const std::string &_uid) {
-  mdnsPrefix = type;
+  instanceType = type;
   uid = _uid;
   delay(1000);
   Serial.print("setting up : ");
@@ -111,9 +112,11 @@ void setup(const string &type, const std::string &_uid) {
   Serial.println("\n");
 
   delay(100);
-  std::string mdnsName = mdnsPrefix + uid;
-  MDNS.begin(mdnsName.c_str());
-  WiFi.setHostname(mdnsName.c_str());
+  instanceName = instanceType;
+  if (uid.size())
+    instanceName += "_" + uid;
+  MDNS.begin(instanceName.c_str());
+  WiFi.setHostname(instanceName.c_str());
   // register event handler
   WiFi.onEvent(WiFiEvent);
 #if MULTI
@@ -215,7 +218,7 @@ void sendOSC(const char *addr, const vector<float> &a) {
     return;
   }
   OSCMessage msg(addr);
-  msg.add(uid.c_str());
+  msg.add(instanceName.c_str());
   for (int i = 0; i < a.size(); i++) {
     msg.add(a[i]);
   }
@@ -231,7 +234,7 @@ void sendOSC(const char *addr, int id, int val) {
     return;
   }
   OSCMessage msg(addr);
-  msg.add(uid.c_str());
+  msg.add(instanceName.c_str());
   msg.add((int)id);
   msg.add((int)val);
 
@@ -245,7 +248,7 @@ void sendAnnounce() {
   if (!connected) {
     return;
   }
-  std::string announce = R"({"type":")" + mdnsPrefix + R"(","id":")" + uid +
+  std::string announce = R"({"type":")" + instanceType + R"(","id":")" + uid +
                          R"(","port":)" + std::to_string(conf::localPort) + "}";
   OSCMessage msg("/announce");
   msg.add(announce.c_str());
@@ -261,7 +264,7 @@ void sendOSC(const char *addr, int val) {
     return;
   }
   OSCMessage msg(addr);
-  msg.add(uid.c_str());
+  msg.add(instanceName.c_str());
   msg.add((int)val);
 
   udp.beginMulticastPacket();
