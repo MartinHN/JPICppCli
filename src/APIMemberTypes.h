@@ -94,8 +94,8 @@ struct LambdaMemberGetSet : public Member<C, T> {
   typedef std::function<T()> GetF;
 
   LambdaMemberGetSet(GetF getF, SetF setF) : getF(getF), setF(setF) {}
-  void set(C &owner, const T &v) { setF(owner, v); }
-  T get(C &owner) const { return getF(owner); }
+  void set(C &owner, const T &v) { setF(v); }
+  T get(C &owner) const { return getF(); }
   GetF getF;
   SetF setF;
 };
