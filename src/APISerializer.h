@@ -2,9 +2,9 @@
 
 #if USE_SERIALIZER
 
-#if USE_CEREAL
-#include <cereal/archives/json.hpp>
-#endif // USE_CEREAL
+// #if USE_CEREAL
+// #include "../lib/cereal/include/cereal/archives/json.hpp"
+// #endif // USE_CEREAL
 
 #include "APIInstance.h"
 #include <string>

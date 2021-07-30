@@ -1,3 +1,4 @@
-compiler.cpp.extra_flags=-frtti -std=gnu++17 -D_GLIBCXX_USE_C99
+##!!!!  put me with your platform.txt
+#compiler.cpp.extra_flags=-frtti -std=gnu++17 -D_GLIBCXX_USE_C99
 
 #GLIBCXX for string utils
