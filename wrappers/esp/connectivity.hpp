@@ -1,4 +1,12 @@
+#define USE_MDNS 1
+
+// lightweight mdns
+#define USE_NOMDNS 0
+
+#if USE_MDNS
 #include "ESPmDNS.h"
+#endif
+
 #include <OSCBundle.h>
 #include <OSCMessage.h>
 #include <WiFi.h>
@@ -11,8 +19,9 @@ struct net {
   const char *ssid;
   const char *pass;
 };
+// if compile error here : you need to add your secrets as vector
 #include "secrets.hpp"
-net net0 = secrets::nets[0]; //.ne {"tinmarphone", "tinmarphone"};
+net net0 = {"mange ma chatte", "sucemonbeat"};
 // adds pass from secret networks...
 
 #define MULTI 1
@@ -65,6 +74,11 @@ void WiFiEvent(WiFiEvent_t event) {
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
     Serial.println(WiFi.getHostname());
+
+#if USE_MDNS
+    MDNS.begin(instanceName.c_str());
+    MDNS.addService("rspstrio", "udp", conf::localPort);
+#endif
     // initializes the UDP state
     // This initializes the transfer buffer
     udp.beginMulticast(conf::udpAddress, conf::announcePort);
@@ -115,12 +129,14 @@ void setup(const string &type, const std::string &_uid) {
   instanceName = instanceType;
   if (uid.size())
     instanceName += "_" + uid;
-  MDNS.begin(instanceName.c_str());
+
   WiFi.setHostname(instanceName.c_str());
   // register event handler
   WiFi.onEvent(WiFiEvent);
 #if MULTI
-  wifiMulti.addAP(net0.ssid, net0.pass);
+  if (strlen(net0.ssid)) {
+    wifiMulti.addAP(net0.ssid, net0.pass);
+  }
   for (auto &n : secrets::nets) {
     wifiMulti.addAP(n.ssid, n.pass);
   }
@@ -244,7 +260,8 @@ void sendOSC(const char *addr, int id, int val) {
   DBGOSC("sending" + String(addr) + " " + String(id) + " : " + String(val));
 }
 
-void sendAnnounce() {
+void sendNoMDNSAnnounce() {
+#if USE_NOMDNS
   if (!connected) {
     return;
   }
@@ -257,6 +274,7 @@ void sendAnnounce() {
   udp.endPacket();
   DBGOSC("sending announce");
   DBGOSC(announce.c_str());
+#endif
 }
 
 void sendOSC(const char *addr, int val) {
@@ -281,7 +299,7 @@ bool sendPing() {
   int pingTime = 3000;
   if ((time - lastPingTime) > pingTime) {
     sendOSC("/ping", pingTime, conf::localPort);
-    sendAnnounce();
+    sendNoMDNSAnnounce();
     lastPingTime = time;
     return true;
   }
