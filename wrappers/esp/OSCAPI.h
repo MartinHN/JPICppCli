@@ -96,15 +96,15 @@ public:
       if (localName.size() && localName[0] == '/') {
         localName = localName.substr(1);
       }
-      Serial.print("msg type : ");
-      Serial.print((int)mt);
-      Serial.print("local name : ");
-      Serial.println(localName.c_str());
+      DBGRESOLVE("msg type : ");
+      DBGRESOLVE((int)mt);
+      DBGRESOLVE("local name : ");
+      DBGRESOLVELN(localName.c_str());
       if (localName.size()) {
         // #if 1
         if (mt == GET) {
           needAnswer = true;
-          PRINTLN("start get");
+          DBGRESOLVELN("start get");
           return api.get(localName);
         }
 #if 1
@@ -118,8 +118,8 @@ public:
           return api.call(localName, listFromOSCMessage(msg, 1));
         } else {
           // defaults
-          PRINT("gessing req from msg size : ");
-          PRINTLN(msg.size());
+          DBGRESOLVE("gessing req from msg size : ");
+          DBGRESOLVELN(msg.size());
           if (msg.size() == 1) { // set if argument
             if (api.canSet(localName)) {
               bool success = api.set(localName, {argFromOSCMessage(msg, 0)});
@@ -199,8 +199,8 @@ protected:
     NodeBase *resolvedNode = res.first;
     int lastValidIdx = res.second;
 
-    PRINT(" last ");
-    PRINTLN(lastValidIdx);
+    DBGRESOLVE(" last ");
+    DBGRESOLVELN(lastValidIdx);
     if (resolvedNode) {
 
       if (APIInstanceBase *resolvedAPI =
@@ -242,7 +242,7 @@ bool OSCAPI::listToOSCMessage(const TypedArgList &l, OSCMessage &msg,
                               int start) {
   bool success = l.size() - start > 0;
   if (!success) {
-    Serial.println("nothing to add in resp msg");
+    PRINT("nothing to add in resp msg");
   }
   for (int i = start; i < l.size(); i++) {
     auto &a = *l[i];
@@ -250,7 +250,7 @@ bool OSCAPI::listToOSCMessage(const TypedArgList &l, OSCMessage &msg,
                  addToMsg<float>(a, msg) || addToMsg<double>(a, msg) ||
                  addToMsg<std::string>(a, msg);
     if (!added) {
-      Serial.println("can't add to resp msg");
+      PRINTLN("can't add to resp msg");
     }
     success &= added;
   }

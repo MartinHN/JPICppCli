@@ -8,3 +8,13 @@
 #define PRINT(x) std::cout << x
 #define PRINTLN(x) std::cout << x << std::endl
 #endif
+
+#if DBG_RESOLVE
+#define DBGRESOLVE(x) PRINT(x)
+#define DBGRESOLVELN(x) PRINTLN(x)
+#else
+#define DBGRESOLVE(x)                                                          \
+  {}
+#define DBGRESOLVELN(x)                                                        \
+  {}
+#endif

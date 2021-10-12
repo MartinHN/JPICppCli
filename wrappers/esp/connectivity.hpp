@@ -12,6 +12,9 @@
 #include <WiFi.h>
 #include <WiFiMulti.h>
 
+// custom wifi settings
+#include <esp_wifi.h>
+
 using std::string;
 using std::vector;
 
@@ -24,16 +27,27 @@ struct net {
 net net0 = {"mange ma chatte", "sucemonbeat"};
 // adds pass from secret networks...
 
-#define MULTI 1
-
+#if DBG_OSC
 #define DBGOSC(x)                                                              \
-  Serial.print("osc : ");                                                      \
-  Serial.println(x);
+  {                                                                            \
+    Serial.print("osc : ");                                                    \
+    Serial.println(x);                                                         \
+  }
+#else
+#define DBGOSC(x)                                                              \
+  {}
+#endif
 
+#if DBG_WIFI
 #define DBGWIFI(x)                                                             \
-  Serial.print("wifi : ");                                                     \
-  Serial.println(x);
-
+  {                                                                            \
+    Serial.print("wifi : ");                                                   \
+    Serial.println(x);                                                         \
+  }
+#else
+#define DBGWIFI(x)                                                             \
+  {}
+#endif
 namespace connectivity {
 
 namespace conf {
@@ -43,16 +57,11 @@ const int localPort = 3000;
 }; // namespace conf
 
 WiFiUDP udp, udpRcv;
-#if MULTI
-WiFiMulti wifiMulti;
-#endif
 
 // forward declare
 bool sendPing();
-
-// values
-const char *ssid = net0.ssid;
-const char *password = net0.pass;
+void printEvent(WiFiEvent_t event);
+void optimizeWiFi();
 
 string instanceType;
 std::string uid;
@@ -61,13 +70,14 @@ unsigned long lastPingTime = 0;
 
 bool connected = false;
 
-void printEvent(WiFiEvent_t event);
 
 // wifi event handler
 void WiFiEvent(WiFiEvent_t event) {
   printEvent(event);
   switch (event) {
   case SYSTEM_EVENT_STA_GOT_IP:
+
+    optimizeWiFi();
     // When connected set
     Serial.print("WiFi connected to ");
     Serial.println(WiFi.SSID());
@@ -85,10 +95,11 @@ void WiFiEvent(WiFiEvent_t event) {
     udpRcv.begin(conf::localPort);
     // digitalWrite(ledPin, HIGH);
     connected = true;
+    lastPingTime = 0;
     sendPing();
     break;
   case SYSTEM_EVENT_STA_DISCONNECTED:
-    // Serial.println("WiFi lost connection");
+    Serial.println("WiFi lost connection");
     connected = false;
     break;
   default:
@@ -97,32 +108,73 @@ void WiFiEvent(WiFiEvent_t event) {
     break;
   }
 }
-void connectToWiFi() {
-#if MULTI
-  DBGWIFI("try connect");
-  if (wifiMulti.run(6000) != WL_CONNECTED) {
-    DBGWIFI("no connected");
-  };
-#else
 
-  Serial.print("disconnect first ...");
-  // delete old config
-  WiFi.disconnect(true);
+void optimizeWiFi() {
+  if (WiFi.status() == WL_CONNECTED) {
+    PRINTLN("optimizing wifi connection");
+    // no power saving here
+    if (auto err = esp_wifi_set_max_tx_power(82)) {
+      PRINT("can't increase power : ");
+      switch (err) {
+        //: WiFi is not initialized by esp_wifi_init
+      case (ESP_ERR_WIFI_NOT_INIT):
+        PRINTLN("wifi not inited");
+        //: WiFi is not started by esp_wifi_start
+      case (ESP_ERR_WIFI_NOT_STARTED):
+        PRINTLN("wifi not started");
+        //: invalid argument, e.g. parameter is out of range
+      // case (ESP_ERR_WIFI_ARG):
+      //   PRINTLN("wrong args");
+      default:
+        PRINTLN("unknown err");
+      }
+    }
 
-  WiFi.mode(WIFI_STA);
-  WiFi.setHostname(("sensor" + uid).c_str());
-  delay(500);
-  Serial.print("Tentative de connexion...");
-  WiFi.begin(ssid, password);
-#endif
+    // we do not want to be sleeping !!!!
+    if (!WiFi.setSleep(false)) {
+      PRINTLN("can't stop sleep wifi");
+    }
+  } else {
+    PRINTLN("can't optimize, not connected");
+  }
+}
+
+void connectToWiFiTask(void *params) {
+  WiFiMulti wifiMulti;
+  if (strlen(net0.ssid)) {
+    wifiMulti.addAP(net0.ssid, net0.pass);
+  }
+  for (auto &n : secrets::nets) {
+    wifiMulti.addAP(n.ssid, n.pass);
+  }
+  for (;;) {
+    if (WiFi.status() != WL_CONNECTED) {
+      auto status = WiFi.status();
+      unsigned long connectTimeout = 15000;
+      if ((status == WL_CONNECT_FAILED) || (status == WL_CONNECTION_LOST) ||
+          (status == WL_DISCONNECTED) || (status == WL_NO_SHIELD)) {
+        DBGWIFI("force try reconnect ");
+        DBGWIFI(status);
+        wifiMulti.run(0);
+        vTaskDelay(connectTimeout / portTICK_PERIOD_MS);
+      }
+      status = WiFi.status();
+
+      if (status != WL_CONNECTED) {
+        DBGWIFI("no connected");
+        DBGWIFI(status);
+      }
+    }
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
 }
 
 void setup(const string &type, const std::string &_uid) {
   instanceType = type;
   uid = _uid;
   delay(1000);
-  Serial.print("setting up : ");
-  Serial.println(uid.c_str());
+  DBGWIFI("setting up : ");
+  DBGWIFI(uid.c_str());
   Serial.println("\n");
 
   delay(100);
@@ -133,57 +185,16 @@ void setup(const string &type, const std::string &_uid) {
   WiFi.setHostname(instanceName.c_str());
   // register event handler
   WiFi.onEvent(WiFiEvent);
-#if MULTI
-  if (strlen(net0.ssid)) {
-    wifiMulti.addAP(net0.ssid, net0.pass);
-  }
-  for (auto &n : secrets::nets) {
-    wifiMulti.addAP(n.ssid, n.pass);
-  }
-#else
-  WiFi.mode(WIFI_STA);
-#endif
-  connectToWiFi();
+
+  // here we could setSTA+AP if needed (supported by wifiMulti normally)
+  xTaskCreatePinnedToCore(connectToWiFiTask, "keep wifi", 5000, NULL, 1, NULL,
+                          CONFIG_ARDUINO_RUNNING_CORE);
 }
 
 bool handleConnection() {
-#if MULTI
-  auto status = wifiMulti.run();
-  if (status == WL_NO_SSID_AVAIL) {
-    // skip while scan running
-    delay(100);
-    DBGWIFI("scan running");
-    return false;
-  }
-  if (status != WL_CONNECTED) {
-    DBGWIFI("reconnecting");
-    delay(3000);
-    connectToWiFi();
-    delay(3000);
-  } else {
-    connected = true;
-  }
-#else
-  if (!connected) {
-    // for (int i = 0 ; i < 1; i++) {
-    // 	delay(2000);
-    // 	digitalWrite(ledPin, !digitalRead(ledPin));
-    // }
 
-    connectToWiFi();
-
-    int maxAttempt = 100;
-    while (WiFi.status() != WL_CONNECTED) {
-      Serial.print(".");
-      delay(100);
-      maxAttempt--;
-      if (maxAttempt < 0) {
-        break;
-      }
-    }
-  }
-#endif
-  sendPing();
+  if (connected)
+    sendPing();
   return connected;
 }
 
@@ -201,8 +212,8 @@ bool receiveOSC(OSCBundle &bundle) {
   int size = udpRcv.parsePacket();
 
   if (size > 0) {
-    Serial.print("size : ");
-    Serial.println(size);
+    // Serial.print("size : ");
+    // Serial.println(size);
     while (size--) {
       bundle.fill(udpRcv.read());
     }
@@ -249,15 +260,19 @@ void sendOSC(const char *addr, int id, int val) {
   if (!connected) {
     return;
   }
-  OSCMessage msg(addr);
-  msg.add(instanceName.c_str());
-  msg.add((int)id);
-  msg.add((int)val);
+  {
+    OSCMessage msg(addr);
+    msg.add(instanceName.c_str());
+    msg.add((int)id);
+    msg.add((int)val);
 
-  udp.beginMulticastPacket();
-  msg.send(udp);
-  udp.endPacket();
-  DBGOSC("sending" + String(addr) + " " + String(id) + " : " + String(val));
+    udp.beginMulticastPacket();
+    msg.send(udp);
+    udp.endPacket();
+  }
+
+  // if (std::string(addr) != "/ping")
+  DBGOSC("sendingv : " + String(addr) + " " + String(id) + " : " + String(val));
 }
 
 void sendNoMDNSAnnounce() {
@@ -297,7 +312,7 @@ bool sendPing() {
   }
   auto time = millis();
   int pingTime = 3000;
-  if ((time - lastPingTime) > pingTime) {
+  if ((time - lastPingTime) > (unsigned long)pingTime) {
     sendOSC("/ping", pingTime, conf::localPort);
     sendNoMDNSAnnounce();
     lastPingTime = time;
@@ -317,7 +332,7 @@ std::string getMac() {
 
 void printEvent(WiFiEvent_t event) {
 
-  Serial.printf("[WiFi-event] event: %d : ", event);
+  // DBGWIFI("[WiFi-event] event: %d : ", event);
 
   switch (event) {
   case SYSTEM_EVENT_WIFI_READY:
@@ -397,6 +412,7 @@ void printEvent(WiFiEvent_t event) {
     DBGWIFI("Obtained IP address");
     break;
   default:
+    DBGWIFI("unknown");
     break;
   }
 }

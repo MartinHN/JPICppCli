@@ -28,42 +28,42 @@ template <typename C> struct APIInstance : public APIInstanceBase {
   APIInstance(C *o, API<C> *a) : obj(o), api(a) {}
   APIBase *getAPI() override { return api; }
   QResult get(const Identifier &n) override {
-    PRINT("try get ");
-    PRINT((long)(void *)this);
-    PRINT(" ");
-    PRINT(n.c_str());
-    PRINT(" : ");
+    DBGRESOLVE("try get ");
+    DBGRESOLVE((long)(void *)this);
+    DBGRESOLVE(" ");
+    DBGRESOLVE(n.c_str());
+    DBGRESOLVE(" : ");
     if (auto *getter = getOrNull(api->getters, n)) {
-      PRINT(", getter,");
+      DBGRESOLVE(", getter,");
       QResult r;
       bool success = tryGet<C, float>(obj, getter, r) ||
                      tryGet<C, int>(obj, getter, r) ||
                      tryGet<C, bool>(obj, getter, r) ||
                      tryGet<C, std::string>(obj, getter, r);
       if (success) {
-        PRINTLN(" -> found");
+        DBGRESOLVELN(" -> found");
         return r;
       }
     }
     if (auto *getter = getOrNull(api->members, n)) {
-      PRINT(", members,");
+      DBGRESOLVE(", members,");
       QResult r;
       bool success = tryGet<C, float>(obj, getter, r) ||
                      tryGet<C, int>(obj, getter, r) ||
                      tryGet<C, bool>(obj, getter, r) ||
                      tryGet<C, std::string>(obj, getter, r);
       if (success) {
-        PRINTLN(" -> found");
+        DBGRESOLVELN(" -> found");
         return r;
       }
     }
-    PRINTLN(" -> not found!!!!");
+    DBGRESOLVELN(" -> not found!!!!");
     return QResult::err("cannot get ");
   }
 
   QResult set(const Identifier &n, const TypedArgList &args) override {
-    PRINT("try set  ");
-    PRINT(n.c_str());
+    DBGRESOLVE("try set  ");
+    DBGRESOLVE(n.c_str());
     if (auto *member = getOrNull(api->members, n)) {
       if (args.size() == 1) {
         auto *v = args[0];
@@ -72,16 +72,16 @@ template <typename C> struct APIInstance : public APIInstanceBase {
                        trySet<C, bool>(obj, member, v) ||
                        trySet<C, std::string>(obj, member, v);
         if (success) {
-          PRINTLN("-> success");
+          DBGRESOLVELN("-> success");
         } else {
-          PRINTLN("-> error");
+          DBGRESOLVELN("-> error");
         }
         return QResult(!success);
       }
-      PRINTLN("-> error 1");
+      DBGRESOLVELN("-> error 1");
       return QResult::err("cannot set wrong num args");
     }
-    PRINTLN("-> error 2");
+    DBGRESOLVELN("-> error 2");
     return QResult::err("cannot set no member");
   }
 
@@ -89,7 +89,7 @@ template <typename C> struct APIInstance : public APIInstanceBase {
     if (auto *fun = api->getFunction(n)) {
       return tryCall<C>(obj, *fun, args);
     }
-    PRINTLN("-> error 2");
+    DBGRESOLVELN("-> error 2");
     return QResult::err("no function found");
   }
 

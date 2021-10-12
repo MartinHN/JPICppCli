@@ -1,6 +1,5 @@
 #pragma once
 #include "Utils.h"
-#include "log.h"
 #include <string>
 
 // using std::string;

@@ -1,5 +1,5 @@
 #pragma once
-#include "log.h"
+
 #include <algorithm>
 #include <map>
 #include <string>
@@ -9,10 +9,12 @@ struct NodeBase {
   typedef std::string Id;
   NodeBase() : parentNode(nullptr) {}
   virtual ~NodeBase() = default;
+  virtual bool setup() { return true; };
   virtual bool hasChilds() const = 0;
   void addChild(const Id &i, NodeBase *c) {
     c->parentNode = this;
     c->idInParent = i;
+    childNodes.push_back(c);
     addChildInternal(i, c);
   }
   virtual void addChildInternal(const Id &i, NodeBase *c) = 0;
@@ -24,7 +26,7 @@ struct NodeBase {
     std::vector<NodeBase *> seen;
     while (insp && (maxD--)) {
       if (!insp->idInParent.size()) {
-        PRINTLN("!!! empty id in parent");
+        DBGRESOLVELN("!!! empty id in parent");
       }
       if (insp == insp->parentNode) {
         res.push_back(".");
@@ -46,33 +48,35 @@ struct NodeBase {
                                          int fromI = 0) {
     auto insp = this;
     int lastValidIdx = insp ? fromI : -1;
-    PRINT("checking : ");
+    DBGRESOLVE("checking : ");
     while (insp) {
       if (lastValidIdx < addr.size()) {
-        PRINT(addr[lastValidIdx].c_str());
-        PRINT(" (");
-        PRINT(lastValidIdx);
-        PRINT(") ");
+        DBGRESOLVE(addr[lastValidIdx].c_str());
+        DBGRESOLVE(" (");
+        DBGRESOLVE(lastValidIdx);
+        DBGRESOLVE(") ");
         auto *ninsp = insp->getChild(addr[lastValidIdx]);
         if (ninsp) {
-          PRINT("found");
+          DBGRESOLVE("found");
           insp = ninsp;
           lastValidIdx++;
         } else {
-          PRINT("not found");
+          DBGRESOLVE("not found");
           lastValidIdx--;
           break;
         }
-        PRINT(" // ");
+        DBGRESOLVE(" // ");
       } else {
         break;
       }
     }
-
+    DBGRESOLVELN("");
     return {insp, lastValidIdx};
   }
   Id idInParent;
   NodeBase *parentNode = nullptr;
+
+  std::vector<NodeBase *> childNodes;
 };
 
 // helpers to tag leaf classes
@@ -156,9 +160,9 @@ template <typename T> static T *getLinkedObj(NodeBase *n) {
   //   auto *ref = r->getRef();
   //   auto casted = dynamic_cast<T *>(ref);
   //   if (!ref) {
-  //     PRINTLN("no obj linked");
+  //     DBGRESOLVELN("no obj linked");
   //   } else if (!casted) {
-  //     PRINTLN("linked but can't cast");
+  //     DBGRESOLVELN("linked but can't cast");
   //   }
   //   return casted;
   // } else
