@@ -62,6 +62,7 @@ WiFiUDP udp, udpRcv;
 bool sendPing();
 void printEvent(WiFiEvent_t event);
 void optimizeWiFi();
+std::string getMac();
 
 string instanceType;
 std::string uid;
@@ -86,8 +87,10 @@ void WiFiEvent(WiFiEvent_t event) {
     Serial.println(WiFi.getHostname());
 
 #if USE_MDNS
-    MDNS.begin(instanceName.c_str());
+    MDNS.begin((instanceName).c_str());
     MDNS.addService("rspstrio", "udp", conf::localPort);
+    MDNS.addServiceTxt("rspstrio", "udp", "uuid",
+                       (instanceType + "@" + getMac()).c_str());
 #endif
     // initializes the UDP state
     // This initializes the transfer buffer
@@ -152,7 +155,8 @@ void connectToWiFiTask(void *params) {
       auto status = WiFi.status();
       unsigned long connectTimeout = 15000;
       if ((status == WL_CONNECT_FAILED) || (status == WL_CONNECTION_LOST) ||
-          (status == WL_DISCONNECTED) || (status == WL_NO_SHIELD)) {
+          (status == WL_DISCONNECTED) || (status == WL_NO_SHIELD) ||
+          (status == WL_IDLE_STATUS)) {
         DBGWIFI("force try reconnect ");
         DBGWIFI(status);
         wifiMulti.run(0);
