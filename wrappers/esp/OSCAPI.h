@@ -96,7 +96,7 @@ public:
       if (localName.size() && localName[0] == '/') {
         localName = localName.substr(1);
       }
-      DBGRESOLVE("msg type : ");
+      DBGRESOLVE("[rslv] msg type : ");
       DBGRESOLVE((int)mt);
       DBGRESOLVE("local name : ");
       DBGRESOLVELN(localName.c_str());
@@ -104,7 +104,7 @@ public:
         // #if 1
         if (mt == GET) {
           needAnswer = true;
-          DBGRESOLVELN("start get");
+          DBGRESOLVELN("[rslv] start get");
           return api.get(localName);
         }
 #if 1
@@ -118,7 +118,7 @@ public:
           return api.call(localName, listFromOSCMessage(msg, 1));
         } else {
           // defaults
-          DBGRESOLVE("gessing req from msg size : ");
+          DBGRESOLVE("[rslv] guessing req from msg size : ");
           DBGRESOLVELN(msg.size());
           if (msg.size() == 1) { // set if argument
             if (api.canSet(localName)) {
@@ -199,17 +199,23 @@ protected:
     NodeBase *resolvedNode = res.first;
     int lastValidIdx = res.second;
 
-    DBGRESOLVE(" last ");
-    DBGRESOLVELN(lastValidIdx);
+    // DBGRESOLVE("[rslv] last ");
+    // DBGRESOLVELN(lastValidIdx);
     if (resolvedNode) {
 
       if (APIInstanceBase *resolvedAPI =
               getLinkedObj<APIInstanceBase>(resolvedNode)) {
-        if (lastValidIdx < addrV.size() - 2) {
-          PRINTLN("!!! OSC parse error");
+        if (lastValidIdx < int(addrV.size()) - 2) {
+          PRINT("!!! OSC parse error for ");
+          PRINT(addr.c_str());
+          PRINT(" ");
+          PRINT(String(addrV.size()));
+          PRINT(" ");
+          PRINTLN(String(lastValidIdx));
         }
         auto cHint =
-            (lastValidIdx == addrV.size() - 2 ? addrV[addrV.size() - 1] : "");
+            (lastValidIdx == int(addrV.size()) - 1 ? addrV[addrV.size() - 1]
+                                                   : "");
         return {resolvedAPI, cHint};
       } else {
         PRINT("!!! resolve can't be casted to API : ");

@@ -28,7 +28,7 @@ template <typename C> struct APIInstance : public APIInstanceBase {
   APIInstance(C *o, API<C> *a) : obj(o), api(a) {}
   APIBase *getAPI() override { return api; }
   QResult get(const Identifier &n) override {
-    DBGRESOLVE("try get ");
+    DBGRESOLVE("[rslv] try get ");
     DBGRESOLVE((long)(void *)this);
     DBGRESOLVE(" ");
     DBGRESOLVE(n.c_str());
@@ -62,7 +62,7 @@ template <typename C> struct APIInstance : public APIInstanceBase {
   }
 
   QResult set(const Identifier &n, const TypedArgList &args) override {
-    DBGRESOLVE("try set  ");
+    DBGRESOLVE("[rslv] try set  ");
     DBGRESOLVE(n.c_str());
     if (auto *member = getOrNull(api->members, n)) {
       if (args.size() == 1) {

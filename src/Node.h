@@ -48,12 +48,13 @@ struct NodeBase {
                                          int fromI = 0) {
     auto insp = this;
     int lastValidIdx = insp ? fromI : -1;
-    DBGRESOLVE("checking : ");
+    if (lastValidIdx < addr.size() - 1)
+      DBGRESOLVE("[rslv] try getting child : ");
     while (insp) {
-      if (lastValidIdx < addr.size()) {
+      if (lastValidIdx < addr.size() - 1) {
         DBGRESOLVE(addr[lastValidIdx].c_str());
         DBGRESOLVE(" (");
-        DBGRESOLVE(lastValidIdx);
+        DBGRESOLVE(String(lastValidIdx));
         DBGRESOLVE(") ");
         auto *ninsp = insp->getChild(addr[lastValidIdx]);
         if (ninsp) {

@@ -32,7 +32,7 @@ net net0 = {"mange ma chatte", "sucemonbeat"};
 #if DBG_OSC
 #define DBGOSC(x)                                                              \
   {                                                                            \
-    Serial.print("osc : ");                                                    \
+    Serial.print("[osc] ");                                                    \
     Serial.println(x);                                                         \
   }
 #else
@@ -43,7 +43,7 @@ net net0 = {"mange ma chatte", "sucemonbeat"};
 #if DBG_WIFI
 #define DBGWIFI(x)                                                             \
   {                                                                            \
-    Serial.print("wifi : ");                                                   \
+    Serial.print("[wifi] ");                                                   \
     Serial.println(x);                                                         \
   }
 #else
@@ -72,7 +72,7 @@ std::string instanceName;
 unsigned long lastPingTime = 0;
 
 bool connected = false;
-
+bool hasBeenDeconnected = false;
 
 // wifi event handler
 void WiFiEvent(WiFiEvent_t event) {
@@ -105,6 +105,7 @@ void WiFiEvent(WiFiEvent_t event) {
     break;
   case SYSTEM_EVENT_STA_DISCONNECTED:
     Serial.println("WiFi lost connection");
+    hasBeenDeconnected = true;
     connected = false;
     break;
   default:
@@ -161,8 +162,15 @@ void connectToWiFiTask(void *params) {
           (status == WL_IDLE_STATUS)) {
         DBGWIFI("force try reconnect ");
         DBGWIFI(status);
+        hasBeenDeconnected = false;
         wifiMulti.run(0);
-        vTaskDelay(connectTimeout / portTICK_PERIOD_MS);
+        int timeOut = connectTimeout;
+        int timeSlice = 1000;
+        while ((timeOut > 0) && !hasBeenDeconnected) {
+          vTaskDelay(timeSlice / portTICK_PERIOD_MS);
+          timeOut -= timeSlice;
+        }
+        hasBeenDeconnected = false;
       }
       status = WiFi.status();
 
@@ -240,9 +248,10 @@ void sendOSCResp(OSCMessage &m) {
   udpRcv.beginPacket(udpRcv.remoteIP(), udpRcv.remotePort());
   m.send(udpRcv);
   udpRcv.endPacket();
-  DBGOSC("sent resp");
-  DBGOSC(udpRcv.remoteIP().toString().c_str());
-  DBGOSC(std::to_string(udpRcv.remotePort()).c_str());
+  // DBGOSC((String("sent resp : ") + m.getAddress() + "(" + String(m.size()) +
+  //         " args) , ".remoteIP().toString() + " " +
+  //         String(udpRcv.remotePort()))
+  //            .c_str());
 }
 
 void sendOSC(const char *addr, const vector<float> &a) {
