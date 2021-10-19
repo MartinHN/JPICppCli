@@ -1,3 +1,5 @@
+#pragma once
+
 #define USE_MDNS 1
 
 // lightweight mdns
