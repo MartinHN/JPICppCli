@@ -74,6 +74,7 @@ unsigned long lastPingTime = 0;
 bool connected = false;
 bool hasBeenDeconnected = false;
 
+std::string mdnsSrvTxt;
 // wifi event handler
 void WiFiEvent(WiFiEvent_t event) {
   printEvent(event);
@@ -81,6 +82,7 @@ void WiFiEvent(WiFiEvent_t event) {
   case SYSTEM_EVENT_STA_GOT_IP:
 
     optimizeWiFi();
+
     // When connected set
     Serial.print("WiFi connected to ");
     Serial.println(WiFi.SSID());
@@ -91,8 +93,7 @@ void WiFiEvent(WiFiEvent_t event) {
 #if USE_MDNS
     MDNS.begin((instanceName).c_str());
     MDNS.addService("rspstrio", "udp", conf::localPort);
-    MDNS.addServiceTxt("rspstrio", "udp", "uuid",
-                       (instanceType + "@" + getMac()).c_str());
+    MDNS.addServiceTxt("rspstrio", "udp", "uuid", mdnsSrvTxt.c_str());
 #endif
     // initializes the UDP state
     // This initializes the transfer buffer
@@ -101,7 +102,7 @@ void WiFiEvent(WiFiEvent_t event) {
     // digitalWrite(ledPin, HIGH);
     connected = true;
     lastPingTime = 0;
-    sendPing();
+    // sendPing();
     break;
   case SYSTEM_EVENT_STA_DISCONNECTED:
     Serial.println("WiFi lost connection");
@@ -138,10 +139,10 @@ void optimizeWiFi() {
 
     // we do not want to be sleeping !!!!
     if (!WiFi.setSleep(false)) {
-      PRINTLN("can't stop sleep wifi");
+      PRINTLN(F("can't stop sleep wifi"));
     }
   } else {
-    PRINTLN("can't optimize, not connected");
+    PRINTLN(F("can't optimize, not connected"));
   }
 }
 
@@ -190,7 +191,7 @@ void setup(const string &type, const std::string &_uid) {
   DBGWIFI("setting up : ");
   DBGWIFI(uid.c_str());
   Serial.println("\n");
-
+  mdnsSrvTxt = instanceType + "@" + getMac();
   delay(100);
   instanceName = instanceType;
   if (uid.size())
@@ -201,8 +202,9 @@ void setup(const string &type, const std::string &_uid) {
   WiFi.onEvent(WiFiEvent);
 
   // here we could setSTA+AP if needed (supported by wifiMulti normally)
-  xTaskCreatePinnedToCore(connectToWiFiTask, "keep wifi", 5000, NULL, 1, NULL,
-                          CONFIG_ARDUINO_RUNNING_CORE);
+  int stackSz = 5000;
+  xTaskCreatePinnedToCore(connectToWiFiTask, "keepwifi", stackSz, NULL, 1, NULL,
+                          (CONFIG_ARDUINO_RUNNING_CORE + 0) % 2);
 }
 
 bool handleConnection() {

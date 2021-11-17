@@ -164,8 +164,9 @@ public:
                 const std::string &_childHint = "")
         : api(_api), childNameHint(_childHint) {}
 
+    static constexpr short maxAddrLength = 255;
     static char *getBuf() {
-      static char strBuf[255];
+      static char strBuf[maxAddrLength];
       return strBuf;
     }
 
@@ -185,10 +186,25 @@ public:
   };
 
   static std::string getAddress(OSCMessage &msg) {
-    if (!msg.getAddress(OSCEndpoint::getBuf(), 0)) {
-      OSCEndpoint::getBuf()[0] = '\0';
+
+    // char strBuf[maxL];
+    char *usedBuf = OSCEndpoint::getBuf();
+    if (msg.hasError()) {
+      switch (msg.getError()) {
+      case OSCErrorCode::ALLOCFAILED:
+        return "/allocFailed";
+      case OSCErrorCode::BUFFER_FULL:
+        return "/bufferFull";
+      case OSCErrorCode::INDEX_OUT_OF_BOUNDS:
+        return "/outopfBounds";
+      case OSCErrorCode::INVALID_OSC:
+        return "/invalidOsc";
+      }
     }
-    return std::string(OSCEndpoint::getBuf());
+    if (!msg.getAddress(usedBuf, 0, OSCEndpoint::maxAddrLength - 1)) {
+      usedBuf[0] = '\0';
+    }
+    return std::string(usedBuf);
   }
 
 protected:
