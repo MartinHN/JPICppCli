@@ -1,4 +1,5 @@
 #pragma once
+
 struct Timeout {
   Timeout(int _interval) : interval(_interval) {}
   bool update(unsigned long long newTime) {
