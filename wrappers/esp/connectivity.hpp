@@ -187,12 +187,12 @@ void connectToWiFiTask(void *params) {
 void setup(const string &type, const std::string &_uid) {
   instanceType = type;
   uid = _uid;
-  delay(1000);
+  // delay(1000);
   DBGWIFI("setting up : ");
   DBGWIFI(uid.c_str());
   Serial.println("\n");
   mdnsSrvTxt = instanceType + "@" + getMac();
-  delay(100);
+  // delay(100);
   instanceName = instanceType;
   if (uid.size())
     instanceName += "_" + uid;
