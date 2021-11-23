@@ -10,6 +10,7 @@ struct NodeBase {
   NodeBase() : parentNode(nullptr) {}
   virtual ~NodeBase() = default;
   virtual bool setup() { return true; };
+  virtual void handle(){};
   virtual bool hasChilds() const = 0;
   void addChild(const Id &i, NodeBase *c) {
     c->parentNode = this;
