@@ -208,9 +208,10 @@ void setup(const string &type, const std::string &_uid) {
 }
 
 bool handleConnection() {
-
+#if USE_NOMDNS
   if (connected)
     sendPing();
+#endif
   return connected;
 }
 
