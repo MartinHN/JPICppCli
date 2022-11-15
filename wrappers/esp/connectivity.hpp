@@ -91,7 +91,7 @@ void WiFiEvent(WiFiEvent_t event) {
     Serial.println(WiFi.getHostname());
 
 #if USE_MDNS
-    MDNS.begin((instanceName).c_str());
+    MDNS.begin(instanceName.c_str());
     MDNS.addService("rspstrio", "udp", conf::localPort);
     MDNS.addServiceTxt("rspstrio", "udp", "uuid", mdnsSrvTxt.c_str());
 #endif
@@ -156,6 +156,10 @@ void connectToWiFiTask(void *params) {
   }
   for (;;) {
     if (WiFi.status() != WL_CONNECTED) {
+      if (connected) {
+        connected = false;
+        DBGWIFI("manually set  disconnected flag");
+      }
       auto status = WiFi.status();
       unsigned long connectTimeout = 15000;
       if ((status == WL_CONNECT_FAILED) || (status == WL_CONNECTION_LOST) ||
