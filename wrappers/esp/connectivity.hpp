@@ -188,6 +188,12 @@ void connectToWiFiTask(void *params) {
   }
 }
 
+inline bool ends_with(std::string const &value, std::string const &ending) {
+  if (ending.size() > value.size())
+    return false;
+  return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
 void setup(const string &type, const std::string &_uid) {
   instanceType = type;
   uid = _uid;
@@ -198,8 +204,20 @@ void setup(const string &type, const std::string &_uid) {
   mdnsSrvTxt = instanceType + "@" + getMac();
   // delay(100);
   instanceName = instanceType;
-  if (uid.size())
-    instanceName += "_" + uid;
+  if (uid.size()) {
+
+    if ((uid.rfind(instanceName + "_", 0) == 0) &&
+        uid.size() > instanceName.size() + 1) {
+      instanceName = uid;
+    } else {
+      instanceName += "_" + uid;
+    }
+    string localSuf = ".local";
+    if (ends_with(instanceName, localSuf)) {
+      instanceName =
+          instanceName.substr(0, instanceName.length() - localSuf.length());
+    }
+  }
 
   WiFi.setHostname(instanceName.c_str());
   // register event handler
