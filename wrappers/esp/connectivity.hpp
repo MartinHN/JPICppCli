@@ -58,7 +58,7 @@ const int announcePort = 4000;
 const int localPort = 3000;
 }; // namespace conf
 
-WiFiUDP udp, udpRcv;
+WiFiUDP udpRcv;
 
 // forward declare
 bool sendPing();
@@ -97,7 +97,7 @@ void WiFiEvent(WiFiEvent_t event) {
 #endif
     // initializes the UDP state
     // This initializes the transfer buffer
-    udp.beginMulticast(conf::udpAddress, conf::announcePort);
+    // udp.beginMulticast(conf::udpAddress, conf::announcePort);
     udpRcv.begin(conf::localPort);
     // digitalWrite(ledPin, HIGH);
     connected = true;
@@ -279,41 +279,42 @@ void sendOSCResp(OSCMessage &m) {
   //            .c_str());
 }
 
-void sendOSC(const char *addr, const vector<float> &a) {
+// void sendOSC(const char *addr, const vector<float> &a) {
 
-  if (!connected) {
-    return;
-  }
-  OSCMessage msg(addr);
-  msg.add(instanceName.c_str());
-  for (int i = 0; i < a.size(); i++) {
-    msg.add(a[i]);
-  }
+//   if (!connected) {
+//     return;
+//   }
+//   OSCMessage msg(addr);
+//   msg.add(instanceName.c_str());
+//   for (int i = 0; i < a.size(); i++) {
+//     msg.add(a[i]);
+//   }
 
-  udp.beginMulticastPacket();
-  msg.send(udp);
-  udp.endPacket();
-  // DBGOSC("sending" + String(addr) + " " + joinToString(a));
-}
+//   udp.beginMulticastPacket();
+//   msg.send(udp);
+//   udp.endPacket();
+//   // DBGOSC("sending" + String(addr) + " " + joinToString(a));
+// }
 
-void sendOSC(const char *addr, int id, int val) {
-  if (!connected) {
-    return;
-  }
-  {
-    OSCMessage msg(addr);
-    msg.add(instanceName.c_str());
-    msg.add((int)id);
-    msg.add((int)val);
+// void sendOSC(const char *addr, int id, int val) {
+//   if (!connected) {
+//     return;
+//   }
+//   {
+//     OSCMessage msg(addr);
+//     msg.add(instanceName.c_str());
+//     msg.add((int)id);
+//     msg.add((int)val);
 
-    udp.beginMulticastPacket();
-    msg.send(udp);
-    udp.endPacket();
-  }
+//     udp.beginMulticastPacket();
+//     msg.send(udp);
+//     udp.endPacket();
+//   }
 
-  // if (std::string(addr) != "/ping")
-  DBGOSC("sendingv : " + String(addr) + " " + String(id) + " : " + String(val));
-}
+//   // if (std::string(addr) != "/ping")
+//   DBGOSC("sendingv : " + String(addr) + " " + String(id) + " : " +
+//   String(val));
+// }
 
 void sendNoMDNSAnnounce() {
 #if USE_NOMDNS
@@ -332,34 +333,34 @@ void sendNoMDNSAnnounce() {
 #endif
 }
 
-void sendOSC(const char *addr, int val) {
-  if (!connected) {
-    return;
-  }
-  OSCMessage msg(addr);
-  msg.add(instanceName.c_str());
-  msg.add((int)val);
+// void sendOSC(const char *addr, int val) {
+//   if (!connected) {
+//     return;
+//   }
+//   OSCMessage msg(addr);
+//   msg.add(instanceName.c_str());
+//   msg.add((int)val);
 
-  udp.beginMulticastPacket();
-  msg.send(udp);
-  udp.endPacket();
-  DBGOSC("sending" + String(addr) + " : " + String(val));
-}
+//   udp.beginMulticastPacket();
+//   msg.send(udp);
+//   udp.endPacket();
+//   DBGOSC("sending" + String(addr) + " : " + String(val));
+// }
 
-bool sendPing() {
-  if (!connected) {
-    return false;
-  }
-  auto time = millis();
-  int pingTime = 3000;
-  if ((time - lastPingTime) > (unsigned long)pingTime) {
-    sendOSC("/ping", pingTime, conf::localPort);
-    sendNoMDNSAnnounce();
-    lastPingTime = time;
-    return true;
-  }
-  return false;
-}
+// bool sendPing() {
+//   if (!connected) {
+//     return false;
+//   }
+//   auto time = millis();
+//   int pingTime = 3000;
+//   if ((time - lastPingTime) > (unsigned long)pingTime) {
+//     sendOSC("/ping", pingTime, conf::localPort);
+//     sendNoMDNSAnnounce();
+//     lastPingTime = time;
+//     return true;
+//   }
+//   return false;
+// }
 
 std::string getMac() {
   uint8_t mac_id[6];
