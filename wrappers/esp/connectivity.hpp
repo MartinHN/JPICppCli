@@ -91,7 +91,11 @@ void WiFiEvent(WiFiEvent_t event) {
     Serial.println(WiFi.getHostname());
 
 #if USE_MDNS
-    MDNS.begin(instanceName.c_str());
+    if (!MDNS.begin(instanceName.c_str()))
+      Serial.print("!!!fail to start mdns service");
+    else
+      Serial.print("start mdns service ");
+    Serial.println(instanceName.c_str());
     MDNS.addService("rspstrio", "udp", conf::localPort);
     MDNS.addServiceTxt("rspstrio", "udp", "uuid", mdnsSrvTxt.c_str());
 #endif
@@ -105,6 +109,9 @@ void WiFiEvent(WiFiEvent_t event) {
     // sendPing();
     break;
   case SYSTEM_EVENT_STA_DISCONNECTED:
+#if USE_MDNS
+    MDNS.end();
+#endif
     Serial.println("WiFi lost connection");
     hasBeenDeconnected = true;
     connected = false;
@@ -139,10 +146,10 @@ void optimizeWiFi() {
 
     // we do not want to be sleeping !!!!
     if (!WiFi.setSleep(false)) {
-      PRINTLN(F("can't stop sleep wifi"));
+      PRINTLN("can't stop sleep wifi");
     }
   } else {
-    PRINTLN(F("can't optimize, not connected"));
+    PRINTLN("can't optimize, not connected");
   }
 }
 
