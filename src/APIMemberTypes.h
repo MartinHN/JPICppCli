@@ -2,9 +2,9 @@
 #include "TypedArgs.h"
 #include "log.h"
 
-#include <experimental/tuple> // for std::apply
 #include <functional>
 #include <map>
+#include <tuple> // for std::apply
 using std::function;
 typedef std::string Identifier;
 
@@ -202,7 +202,7 @@ struct Function : public FunctionOfInstance<C> {
     TypedArgBase::UPtr res;
     auto tuple = TupleFiller::fillTuple<Args...>(l, valid);
     if (valid) {
-      std::experimental::apply(
+      std::apply(
           [this, owner, &res](auto &&...args) {
             this->apply(owner, args...);
             res.reset(new TypedArg<void>());
@@ -221,7 +221,7 @@ struct Function : public FunctionOfInstance<C> {
     TypedArgBase::UPtr res;
     auto tuple = TupleFiller::fillTuple<Args...>(l, valid);
     if (valid) {
-      std::experimental::apply(
+      std::apply(
           [this, owner, &res](auto &&...args) {
             res.reset(new TypedArg<T>(this->apply(owner, args...)));
           },
