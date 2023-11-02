@@ -2,14 +2,17 @@ cmake_minimum_required(VERSION 3.2)
 
 project(grideyeTest)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O0 -ftime-trace -I/home/tinmar/Dev/cereal/include")
+
+set(CEREAL_INCLUDE ${PROJECT_SOURCE_DIR}/../lib/cereal/include)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -ftime-trace -I")
 
 
 set(CMAKE_INSTALL_PREFIX ${PROJECT_SOURCE_DIR})
 
-set(GETEST_INCLUDE_DIR ${PROJECT_SOURCE_DIR}../lib)
+set(GETEST_INCLUDE_DIR ${CEREAL_INCLUDE})
+message("lllllll" ${GETEST_INCLUDE_DIR})
 # set(GETEST_BIN_DIR ${PROJECT_SOURCE_DIR}/bin)
 # set(GETEST_LIB_DIR ${PROJECT_SOURCE_DIR}/lib)
 
