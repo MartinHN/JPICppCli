@@ -84,10 +84,13 @@ public:
     needAnswer = false;
     auto addr = getAddress(msg);
     if (addr == "/schema") {
+#if USE_SERIALIZER
       needAnswer = true;
       auto str = APISerializer::schemaFromNode(from);
-
       return QResult(new TypedArg<std::string>(str));
+#else
+      return QResult(new TypedArg<std::string>("no serializer"));
+#endif
     }
     if (auto a = getEpFromMsg(from, msg)) {
       auto &api = *a.api;
