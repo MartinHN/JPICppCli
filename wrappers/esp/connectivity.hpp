@@ -245,34 +245,47 @@ String joinToString(vector<float> p) {
   return res;
 }
 
-bool receiveOSC(OSCBundle &bundle) {
+bool receiveOSC(OSCMessage &bundle) {
   if (!connected)
     return false;
-  int size = udpRcv.parsePacket();
 
-  if (size > 0) {
+  // while (udpRcv.available()) {
+
+  int size = udpRcv.parsePacket();
+  if (size == 0)
+    return false;
+  while (size > 0) {
     // Serial.print("size : ");
     // Serial.println(size);
     while (size--) {
       bundle.fill(udpRcv.read());
     }
+    // if (bundle.hasError() || ) {
+    // size = udpRcv.parsePacket();
 
-    if (bundle.size() > 0) {
-      // Serial.print("bundle received : ");
-      // Serial.println(bundle.size());
-      return true;
-    } else if (bundle.hasError()) {
-      Serial.print("bundle err : ");
-      Serial.println(bundle.getError());
-    }
+    //   while (size--) {
+    //     bundle.fill(udpRcv.read());
+    //   }
   }
-  return false;
+  if (udpRcv.available()) {
+    Serial.print("more udp data available");
+  }
+
+  if (bundle.hasError()) {
+    Serial.print("bundle err : ");
+    Serial.println(bundle.getError());
+    return false;
+  }
+  // }
+  return true;
 }
 
 void sendOSCResp(OSCMessage &m) {
   udpRcv.beginPacket(udpRcv.remoteIP(), udpRcv.remotePort());
   m.send(udpRcv);
   udpRcv.endPacket();
+  udpRcv.flush();
+
   // DBGOSC((String("sent resp : ") + m.getAddress() + "(" + String(m.size()) +
   //         " args) , ".remoteIP().toString() + " " +
   //         String(udpRcv.remotePort()))
