@@ -73,8 +73,9 @@ std::string uid;
 std::string instanceName;
 unsigned long lastPingTime = 0;
 
-bool connected = false;
-bool hasBeenDeconnected = false;
+volatile bool connected = false;
+volatile bool isWifiDisabled = false;
+volatile bool hasBeenDeconnected = false;
 
 std::string mdnsSrvTxt;
 AsyncWiFiMulti wifiMulti;
@@ -188,6 +189,11 @@ void optimizeWiFi() {
   }
 }
 
+void setWifiDisabled(bool b) {
+  isWifiDisabled = b;
+  wifiMulti.hasHandledResultAndClear();
+}
+
 void connectToWiFiTask(void *params) {
   if (strlen(net0.ssid)) {
     wifiMulti.addAP(net0.ssid, net0.pass);
@@ -195,16 +201,21 @@ void connectToWiFiTask(void *params) {
   for (auto &n : secrets::nets) {
     wifiMulti.addAP(n.ssid, n.pass);
   }
+  int scanIntervalMs = 20111;
+  int scanResultWaitMs = 511;
   for (;;) {
     Serial.printf("Wifi() - Free Stack Space: %d\n", uxTaskGetStackHighWaterMark(NULL));
-    if (!connected) {
+    Serial.flush();
+    if (isWifiDisabled) {
+      WiFi.enableSTA(false);
+      adc_power_off();
+    } else if (!connected) {
       // WiFi.status() != WL_CONNECTED may incur weird side effect?
       // if (connected) {
       //   connected = false;
       //   DBGWIFI("manually set  disconnected flag");
       // }
-      int scanIntervalMs = 20111;
-      int scanResultWaitMs = 511;
+
       if (wifiMulti.hasHandledResultAndClear()) {
         DBGWIFI("has scanned once, wait before next scan");
         WiFi.enableSTA(false);
@@ -229,14 +240,13 @@ void connectToWiFiTask(void *params) {
         continue;
       }
 
-      if ((status == WL_CONNECT_FAILED) || (status == WL_CONNECTION_LOST) ||
-          (status == WL_DISCONNECTED) || (status == WL_NO_SHIELD) ||
+      if ((status == WL_CONNECT_FAILED) || (status == WL_CONNECTION_LOST) || (status == WL_DISCONNECTED) || (status == WL_NO_SHIELD) ||
           (status == WL_IDLE_STATUS)) {
         DBGWIFI("will try reconnect ");
         DBGWIFI(status);
       }
     }
-    vTaskDelay(5111 / portTICK_PERIOD_MS);
+    vTaskDelay(scanIntervalMs / portTICK_PERIOD_MS);
     DBGWIFI("back to wifi");
   }
 }
@@ -277,8 +287,8 @@ void setup(const string &type, const std::string &_uid) {
   WiFi.onEvent(WiFiEvent);
 
   // here we could setSTA+AP if needed (supported by wifiMulti normally)
-  int stackSz = 3000; // 5000;
-  xTaskCreatePinnedToCore(connectToWiFiTask, "keepwifi", stackSz, NULL, 5, NULL, (CONFIG_ARDUINO_RUNNING_CORE + 1) % 2);
+  int stackSz = 2048; // 5000;
+  xTaskCreatePinnedToCore(connectToWiFiTask, "keepwifi", stackSz, NULL, 5, NULL, (ARDUINO_RUNNING_CORE + 1) % 2);
 }
 
 bool handleConnection() {
