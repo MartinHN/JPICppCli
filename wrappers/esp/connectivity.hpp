@@ -12,10 +12,12 @@
 #include <OSCBundle.h>
 #include <OSCMessage.h>
 #include <WiFi.h>
-#include <WiFiMulti.h>
+#include "AsyncWiFiMulti.h"
 
 // custom wifi settings
 #include <esp_wifi.h>
+
+#include "driver/adc.h" // for deactivating adc
 
 using std::string;
 using std::vector;
@@ -75,6 +77,7 @@ bool connected = false;
 bool hasBeenDeconnected = false;
 
 std::string mdnsSrvTxt;
+AsyncWiFiMulti wifiMulti;
 // wifi event handler
 void WiFiEvent(WiFiEvent_t event) {
   printEvent(event);
@@ -116,6 +119,11 @@ void WiFiEvent(WiFiEvent_t event) {
     hasBeenDeconnected = true;
     connected = false;
     break;
+  case SYSTEM_EVENT_SCAN_DONE:
+    PRINTLN(">>>scan cb");
+    wifiMulti.handleScanDone(0);
+
+    break;
   default:
     // Serial.print("Wifi Event :");
     // Serial.println(event);
@@ -123,9 +131,40 @@ void WiFiEvent(WiFiEvent_t event) {
   }
 }
 
+void reduceWifi() {
+  PRINTLN("reducing wifi connection");
+  if (!WiFi.setSleep(true)) {
+    PRINTLN("can't stop sleep wifi");
+  }
+  // yes power saving here
+  // Mapping Table {Power, max_tx_power} = {{8,   2}, {20,  5}, {28,  7}, {34,  8}, {44, 11},
+  // *                                                      {52, 13}, {56, 14}, {60, 15}, {66, 16}, {72, 18}, {80, 20}}.
+  if (auto err = esp_wifi_set_max_tx_power(28)) {
+    PRINT("can't decrease power : ");
+    switch (err) {
+      //: WiFi is not initialized by esp_wifi_init
+    case (ESP_ERR_WIFI_NOT_INIT):
+      PRINTLN("wifi not inited");
+      //: WiFi is not started by esp_wifi_start
+    case (ESP_ERR_WIFI_NOT_STARTED):
+      PRINTLN("wifi not started");
+      //: invalid argument, e.g. parameter is out of range
+    // case (ESP_ERR_WIFI_ARG):
+    //   PRINTLN("wrong args");
+    default:
+      PRINTLN("unknown err");
+    }
+  }
+}
 void optimizeWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
+    reduceWifi();
+    return;
     PRINTLN("optimizing wifi connection");
+    // we do not want to be sleeping !!!!
+    if (!WiFi.setSleep(false)) {
+      PRINTLN("can't stop sleep wifi");
+    }
     // no power saving here
     if (auto err = esp_wifi_set_max_tx_power(82)) {
       PRINT("can't increase power : ");
@@ -144,17 +183,12 @@ void optimizeWiFi() {
       }
     }
 
-    // we do not want to be sleeping !!!!
-    if (!WiFi.setSleep(false)) {
-      PRINTLN("can't stop sleep wifi");
-    }
   } else {
     PRINTLN("can't optimize, not connected");
   }
 }
 
 void connectToWiFiTask(void *params) {
-  WiFiMulti wifiMulti;
   if (strlen(net0.ssid)) {
     wifiMulti.addAP(net0.ssid, net0.pass);
   }
@@ -162,36 +196,48 @@ void connectToWiFiTask(void *params) {
     wifiMulti.addAP(n.ssid, n.pass);
   }
   for (;;) {
-    if (WiFi.status() != WL_CONNECTED) {
-      if (connected) {
-        connected = false;
-        DBGWIFI("manually set  disconnected flag");
+    Serial.printf("Wifi() - Free Stack Space: %d\n", uxTaskGetStackHighWaterMark(NULL));
+    if (!connected) {
+      // WiFi.status() != WL_CONNECTED may incur weird side effect?
+      // if (connected) {
+      //   connected = false;
+      //   DBGWIFI("manually set  disconnected flag");
+      // }
+      int scanIntervalMs = 20111;
+      int scanResultWaitMs = 511;
+      if (wifiMulti.hasHandledResultAndClear()) {
+        DBGWIFI("has scanned once, wait before next scan");
+        WiFi.enableSTA(false);
+        adc_power_off();
+        vTaskDelay(scanIntervalMs / portTICK_PERIOD_MS);
+        continue;
       }
-      auto status = WiFi.status();
-      unsigned long connectTimeout = 15000;
+      adc_power_on();
+      WiFi.enableSTA(true);
+
+      auto scanStatus = WiFi.scanComplete();
+      if (scanStatus == WIFI_SCAN_RUNNING) {
+        DBGWIFI("waiting for scan to end");
+        vTaskDelay(scanResultWaitMs / portTICK_PERIOD_MS);
+        continue;
+      }
+
+      auto status = wifiMulti.run(0);
+      if (WiFi.scanComplete() == WIFI_SCAN_RUNNING) {
+        DBGWIFI("waiting for scan to end post");
+        vTaskDelay(scanResultWaitMs / portTICK_PERIOD_MS);
+        continue;
+      }
+
       if ((status == WL_CONNECT_FAILED) || (status == WL_CONNECTION_LOST) ||
           (status == WL_DISCONNECTED) || (status == WL_NO_SHIELD) ||
           (status == WL_IDLE_STATUS)) {
-        DBGWIFI("force try reconnect ");
-        DBGWIFI(status);
-        hasBeenDeconnected = false;
-        wifiMulti.run(0);
-        int timeOut = connectTimeout;
-        int timeSlice = 1000;
-        while ((timeOut > 0) && !hasBeenDeconnected) {
-          vTaskDelay(timeSlice / portTICK_PERIOD_MS);
-          timeOut -= timeSlice;
-        }
-        hasBeenDeconnected = false;
-      }
-      status = WiFi.status();
-
-      if (status != WL_CONNECTED) {
-        DBGWIFI("no connected");
+        DBGWIFI("will try reconnect ");
         DBGWIFI(status);
       }
     }
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(5111 / portTICK_PERIOD_MS);
+    DBGWIFI("back to wifi");
   }
 }
 
@@ -231,9 +277,8 @@ void setup(const string &type, const std::string &_uid) {
   WiFi.onEvent(WiFiEvent);
 
   // here we could setSTA+AP if needed (supported by wifiMulti normally)
-  int stackSz = 5000;
-  xTaskCreatePinnedToCore(connectToWiFiTask, "keepwifi", stackSz, NULL, 1, NULL,
-                          (CONFIG_ARDUINO_RUNNING_CORE + 0) % 2);
+  int stackSz = 3000; // 5000;
+  xTaskCreatePinnedToCore(connectToWiFiTask, "keepwifi", stackSz, NULL, 5, NULL, (CONFIG_ARDUINO_RUNNING_CORE + 1) % 2);
 }
 
 bool handleConnection() {
