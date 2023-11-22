@@ -111,7 +111,7 @@ uint8_t AsyncWiFiMulti::handleScanDone(uint32_t connectTimeout) {
   }
   uint8_t status = WL_NO_SSID_AVAIL;
   if (scanResult >= 0) {
-    hasHandledResult = true;
+
     // scan done analyze
     WifiAPlist_t bestNetwork{NULL, NULL};
     int bestNetworkDb = INT_MIN;
@@ -213,7 +213,7 @@ uint8_t AsyncWiFiMulti::handleScanDone(uint32_t connectTimeout) {
     //     // scan wifi async mode
     //     WiFi.scanNetworks(true);
     //   }
-
+    hasHandledResult = true;
     return status;
   }
 }

@@ -83,7 +83,7 @@ AsyncWiFiMulti wifiMulti;
 void WiFiEvent(WiFiEvent_t event) {
   printEvent(event);
   switch (event) {
-  case SYSTEM_EVENT_STA_GOT_IP:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_STA_GOT_IP:
 
     optimizeWiFi();
 
@@ -112,7 +112,7 @@ void WiFiEvent(WiFiEvent_t event) {
     lastPingTime = 0;
     // sendPing();
     break;
-  case SYSTEM_EVENT_STA_DISCONNECTED:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
 #if USE_MDNS
     MDNS.end();
 #endif
@@ -120,9 +120,9 @@ void WiFiEvent(WiFiEvent_t event) {
     hasBeenDeconnected = true;
     connected = false;
     break;
-  case SYSTEM_EVENT_SCAN_DONE:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_SCAN_DONE:
     PRINTLN(">>>scan cb");
-    wifiMulti.handleScanDone(0);
+    wifiMulti.handleScanDone(5000);
 
     break;
   default:
@@ -159,8 +159,8 @@ void reduceWifi() {
 }
 void optimizeWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
-    reduceWifi();
-    return;
+    // reduceWifi();
+    // return;
     PRINTLN("optimizing wifi connection");
     // we do not want to be sleeping !!!!
     if (!WiFi.setSleep(false)) {
@@ -287,7 +287,7 @@ void setup(const string &type, const std::string &_uid) {
   WiFi.onEvent(WiFiEvent);
 
   // here we could setSTA+AP if needed (supported by wifiMulti normally)
-  int stackSz = 2048; // 5000;
+  int stackSz = 4048; // 5000;
   xTaskCreatePinnedToCore(connectToWiFiTask, "keepwifi", stackSz, NULL, 5, NULL, (ARDUINO_RUNNING_CORE + 1) % 2);
 }
 
@@ -447,88 +447,84 @@ std::string getMac() {
 }
 
 void printEvent(WiFiEvent_t event) {
-
-  // DBGWIFI("[WiFi-event] event: %d : ", event);
-
   switch (event) {
-  case SYSTEM_EVENT_WIFI_READY:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_READY:
     DBGWIFI("WiFi interface ready");
     break;
-  case SYSTEM_EVENT_SCAN_DONE:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_SCAN_DONE:
     DBGWIFI("Completed scan for access points");
     break;
-  case SYSTEM_EVENT_STA_START:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_STA_START:
     DBGWIFI("WiFi client started");
     break;
-  case SYSTEM_EVENT_STA_STOP:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_STA_STOP:
     DBGWIFI("WiFi clients stopped");
     break;
-  case SYSTEM_EVENT_STA_CONNECTED:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
     DBGWIFI("Connected to access point");
     break;
-  case SYSTEM_EVENT_STA_DISCONNECTED:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
     DBGWIFI("Disconnected from WiFi access point");
     break;
-  case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_STA_AUTHMODE_CHANGE:
     DBGWIFI("Authentication mode of access point has changed");
     break;
-  case SYSTEM_EVENT_STA_GOT_IP:
-    Serial.print("Obtained IP address: ");
-    DBGWIFI(WiFi.localIP());
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_STA_GOT_IP:
+    DBGWIFI("Obtained IP address: " + String(WiFi.localIP()));
     break;
-  case SYSTEM_EVENT_STA_LOST_IP:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_STA_LOST_IP:
     DBGWIFI("Lost IP address and IP address is reset to 0");
     break;
-  case SYSTEM_EVENT_STA_WPS_ER_SUCCESS:
+  case arduino_event_id_t::ARDUINO_EVENT_WPS_ER_SUCCESS:
     DBGWIFI("WiFi Protected Setup (WPS): succeeded in enrollee mode");
     break;
-  case SYSTEM_EVENT_STA_WPS_ER_FAILED:
+  case arduino_event_id_t::ARDUINO_EVENT_WPS_ER_FAILED:
     DBGWIFI("WiFi Protected Setup (WPS): failed in enrollee mode");
     break;
-  case SYSTEM_EVENT_STA_WPS_ER_TIMEOUT:
+  case arduino_event_id_t::ARDUINO_EVENT_WPS_ER_TIMEOUT:
     DBGWIFI("WiFi Protected Setup (WPS): timeout in enrollee mode");
     break;
-  case SYSTEM_EVENT_STA_WPS_ER_PIN:
+  case arduino_event_id_t::ARDUINO_EVENT_WPS_ER_PIN:
     DBGWIFI("WiFi Protected Setup (WPS): pin code in enrollee mode");
     break;
-  case SYSTEM_EVENT_AP_START:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_AP_START:
     DBGWIFI("WiFi access point started");
     break;
-  case SYSTEM_EVENT_AP_STOP:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_AP_STOP:
     DBGWIFI("WiFi access point  stopped");
     break;
-  case SYSTEM_EVENT_AP_STACONNECTED:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_AP_STACONNECTED:
     DBGWIFI("Client connected");
     break;
-  case SYSTEM_EVENT_AP_STADISCONNECTED:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
     DBGWIFI("Client disconnected");
     break;
-  case SYSTEM_EVENT_AP_STAIPASSIGNED:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:
     DBGWIFI("Assigned IP address to client");
     break;
-  case SYSTEM_EVENT_AP_PROBEREQRECVED:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_AP_PROBEREQRECVED:
     DBGWIFI("Received probe request");
     break;
-  case SYSTEM_EVENT_GOT_IP6:
+  case arduino_event_id_t::ARDUINO_EVENT_WIFI_AP_GOT_IP6:
     DBGWIFI("IPv6 is preferred");
     break;
-  case SYSTEM_EVENT_ETH_START:
+  case arduino_event_id_t::ARDUINO_EVENT_ETH_START:
     DBGWIFI("Ethernet started");
     break;
-  case SYSTEM_EVENT_ETH_STOP:
+  case arduino_event_id_t::ARDUINO_EVENT_ETH_STOP:
     DBGWIFI("Ethernet stopped");
     break;
-  case SYSTEM_EVENT_ETH_CONNECTED:
+  case arduino_event_id_t::ARDUINO_EVENT_ETH_CONNECTED:
     DBGWIFI("Ethernet connected");
     break;
-  case SYSTEM_EVENT_ETH_DISCONNECTED:
+  case arduino_event_id_t::ARDUINO_EVENT_ETH_DISCONNECTED:
     DBGWIFI("Ethernet disconnected");
     break;
-  case SYSTEM_EVENT_ETH_GOT_IP:
+  case arduino_event_id_t::ARDUINO_EVENT_ETH_GOT_IP:
     DBGWIFI("Obtained IP address");
     break;
   default:
-    DBGWIFI("unknown");
+    DBGWIFI("unknown wifi event " + String(event));
     break;
   }
 }
